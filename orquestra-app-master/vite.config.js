@@ -1,0 +1,48 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+// https://vite.dev/config/
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    {
+      name: 'iframe-hmr',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          // Allow iframe embedding
+          res.setHeader('X-Frame-Options', 'ALLOWALL');
+          res.setHeader('Content-Security-Policy', "frame-ancestors *");
+          next();
+        });
+      }
+    }
+  ].filter(Boolean),
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Treat import errors as fatal errors
+        if (
+          warning.code === "UNRESOLVED_IMPORT" ||
+          warning.code === "MISSING_EXPORT"
+        ) {
+          throw new Error(`Build failed: ${warning.message}`);
+        }
+        // Use default for other warnings
+        warn(warning);
+      },
+    },
+  },
+  server: {
+    host: "0.0.0.0", // Bind to all interfaces for container access
+    port: 5173,
+    strictPort: true,
+    // Allow all hosts - essential for Modal tunnel URIs
+    allowedHosts: true,
+  }
+}))
